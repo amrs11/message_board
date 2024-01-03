@@ -34,11 +34,27 @@ public class IndexServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         EntityManager em = DBUtil.createEntityManager();
 
-        List<Message> messages = em.createNamedQuery("getAllMessages", Message.class).getResultList();
+        // 開くページ数を取得（デフォルトは1ページ目）
+        int page = 1;
+        try {
+            page = Integer.parseInt(request.getParameter("page")); // 引数＝URLの最後のほうの"/page=?"の?に来る値
+        } catch(NumberFormatException e) {}
+
+        // 最大件数と開始位置を指定してメッセージを取得
+        List<Message> messages = em.createNamedQuery("getAllMessages",Message.class)
+                .setFirstResult(15 * (page - 1)) // 1ページ目は0件目から（配列と同じ）、2ページ目は15件目から表示
+                .setMaxResults(15)
+                .getResultList();
+
+        // 全件"数"を取得（メッセージが全部で何件あるか）
+        long messages_count = (long)em.createNamedQuery("getMessagesCount",Long.class)
+                .getSingleResult(); //件数結果（全部で100件なら"100"という数値）しか返ってこないのでsingle
 
         em.close();
 
-        request.setAttribute("messages", messages);
+        request.setAttribute("messages",messages);
+        request.setAttribute("messages_count",messages_count); //全件数
+        request.setAttribute("page",page); //ページ数
 
         // フラッシュメッセージがセッションスコープにセットされていたら
         // リクエストスコープに保存する（セッションスコープからは削除）
